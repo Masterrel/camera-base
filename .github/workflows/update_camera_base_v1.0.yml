@@ -1,0 +1,64 @@
+# Оновлення бази камер для Camera Alert — v1.0
+# Раз на добу о 02:17 UTC (04:17 за Києвом взимку, 05:17 влітку) тягне свіжі
+# камери з OpenStreetMap і публікує cameras.json + meta.json на GitHub Pages.
+# Також можна запустити вручну: Actions -> "Оновлення бази камер" -> Run workflow.
+
+name: Оновлення бази камер
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # щоб закомітити оновлену базу в папку docs
+  pages: write      # щоб опублікувати на GitHub Pages
+  id-token: write
+
+concurrency:
+  group: camera-base
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Отримати репозиторій
+        uses: actions/checkout@v6
+
+      - name: Зібрати базу з OpenStreetMap
+        run: |
+          SCRIPT="$(find scripts -maxdepth 1 -type f -name 'build?camera?base?v*.py' | sort -V | tail -n 1)"
+          if [ -z "$SCRIPT" ]; then echo "Не знайдено scripts/build_camera_base_v*.py"; exit 1; fi
+          echo "Скрипт: $SCRIPT"
+          python3 "$SCRIPT" --out docs
+
+      - name: Зберегти базу в репозиторії
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs
+          if git diff --cached --quiet; then
+            echo "Змін немає"
+          else
+            git commit -m "База камер $(date -u +%Y-%m-%d)"
+            git push
+          fi
+
+      - name: Підготувати файли для Pages
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Опублікувати на GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+# update_camera_base v1.0
