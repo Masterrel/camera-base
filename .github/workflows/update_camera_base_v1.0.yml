@@ -1,7 +1,9 @@
-# Оновлення бази камер для Camera Alert — v1.0
+# Оновлення бази камер для Camera Alert — v1.1
 # Раз на добу о 02:17 UTC (04:17 за Києвом взимку, 05:17 влітку) тягне свіжі
 # камери з OpenStreetMap і публікує cameras.json + meta.json на GitHub Pages.
 # Також можна запустити вручну: Actions -> "Оновлення бази камер" -> Run workflow.
+# v1.1: якщо OpenStreetMap не відповів — сайт усе одно публікується зі старою базою
+#       (скрипт не чіпає базу при збої), тож зміни privacy.html потрапляють на сайт завжди.
 
 name: Оновлення бази камер
 
@@ -27,6 +29,8 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Зібрати базу з OpenStreetMap
+        # Збій Overpass не зупиняє публікацію: стара база лишається, сайт оновлюється.
+        continue-on-error: true
         run: |
           SCRIPT="$(find scripts -maxdepth 1 -type f -name 'build?camera?base?v*.py' | sort -V | tail -n 1)"
           if [ -z "$SCRIPT" ]; then echo "Не знайдено scripts/build_camera_base_v*.py"; exit 1; fi
@@ -61,4 +65,4 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v5
 
-# update_camera_base v1.0
+# update_camera_base v1.1
